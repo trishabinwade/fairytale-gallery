@@ -15,10 +15,10 @@
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     min-height:100vh;overflow:hidden;user-select:none;-webkit-user-select:none;
   }
-  #bg{position:fixed;inset:0;z-index:0}
+  #bg{position:fixed;inset:0;z-index:0;touch-action:none;cursor:grab}
 
   .board{
-    position:relative;z-index:2;width:min(1100px,96vw);aspect-ratio:16/10;max-height:82vh;
+    position:relative;z-index:2;width:min(1100px,96vw);aspect-ratio:16/10;max-height:80vh;
     background:radial-gradient(ellipse at 50% 40%,#12060a 0%,#000 75%);
     border:1px solid #2a1216;border-radius:18px;
     box-shadow:0 0 60px rgba(255,20,50,.12),inset 0 0 80px rgba(0,0,0,.8);
@@ -44,7 +44,7 @@
   }
 
   .title-card{
-    width:clamp(200px,30%,320px);text-align:center;padding:22px 18px;pointer-events:auto;
+    width:clamp(200px,30%,320px);text-align:center;padding:22px 18px;
     background:rgba(10,10,12,.72);border:1px solid #3a1218;border-radius:14px;
     box-shadow:0 14px 34px rgba(0,0,0,.6);
   }
@@ -58,11 +58,11 @@
     font-size:clamp(34px,5vw,54px);line-height:1;
     filter:drop-shadow(0 0 14px rgba(255,45,78,.85));
   }
-  .sticker.dim{filter:drop-shadow(0 0 10px rgba(255,45,78,.5));opacity:.8}
+  .sticker svg{display:block;filter:drop-shadow(0 0 10px rgba(255,158,187,.7))}
 
   .tiny{
     position:relative;z-index:2;margin-top:18px;font-size:11px;letter-spacing:3px;
-    color:#7d5a63;text-transform:uppercase;animation:pulse 2.4s ease-in-out infinite;
+    color:#7d5a63;text-transform:uppercase;animation:pulse 2.4s ease-in-out infinite;text-align:center;padding:0 16px;
   }
   @keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
 </style>
@@ -103,44 +103,82 @@
   </div>
 
   <div class="draggable sticker" style="left:64%;top:30%;transform:rotate(-12deg)">♥</div>
-  <div class="draggable sticker dim" style="left:8%;top:32%;transform:rotate(10deg)">♥</div>
+  <div class="draggable sticker" style="left:8%;top:32%;transform:rotate(10deg);opacity:.8">♥</div>
 </div>
 
-<div class="tiny">drag the polaroids around ♥</div>
+<div class="tiny">drag the polaroids · catch a floating charm &amp; drop it on the page ♥</div>
 
 <script>
-/* ======== glowing red hearts background ======== */
+const CHARMS={
+  arrow:{ch:'🏹',label:'cupid\u2019s arrow'},
+  cupid:{ch:'👼',label:'cupid'},
+  heartArrow:{ch:'💘',label:'heart arrow'},
+  heart:{ch:'♥',label:'heart'},
+  lace:{ch:null,label:'lace'}
+};
+const TYPES=Object.keys(CHARMS);
+
+/* ======== floating charms background ======== */
 const cv=document.getElementById('bg'),ctx=cv.getContext('2d');
-let W,H;const COLORS=['#ff1a3c','#ff2d4e','#ff4d6d','#c1121f','#ff758f'];
+let W,H;
 function rs(){W=cv.width=innerWidth;H=cv.height=innerHeight}addEventListener('resize',rs);rs();
-function heart(x,y,s,c,a,rot,blur){
+
+function drawHeartPath(x,y,s,color,alpha,rot,blur){
   ctx.save();ctx.translate(x,y);ctx.rotate(rot);ctx.scale(s,s);
-  ctx.globalAlpha=a;ctx.fillStyle=c;ctx.shadowColor=c;ctx.shadowBlur=blur;
+  ctx.globalAlpha=alpha;ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=blur;
   ctx.beginPath();ctx.moveTo(0,4);
   ctx.bezierCurveTo(-7,-3,-3.5,-10,0,-5.5);
   ctx.bezierCurveTo(3.5,-10,7,-3,0,4);ctx.fill();ctx.restore();ctx.globalAlpha=1;
 }
-function mk(any){return{x:Math.random()*W,y:any?Math.random()*H:H+30,s:3+Math.random()*8,
-  vy:.35+Math.random()*1,sw:.4+Math.random()*1.4,ph:Math.random()*6.28,
-  c:COLORS[Math.random()*COLORS.length|0],a:.25+Math.random()*.55,rot:(Math.random()-.5)*.7}}
-let hs=[];for(let i=0;i<55;i++)hs.push(mk(true));
+function drawLace(x,y,r,alpha,rot,blur){
+  ctx.save();ctx.translate(x,y);ctx.rotate(rot);ctx.globalAlpha=alpha;
+  ctx.strokeStyle='#ffd6e2';ctx.shadowColor='#ff9ebb';ctx.shadowBlur=blur;ctx.lineWidth=Math.max(1,r*.05);
+  ctx.setLineDash([r*.18,r*.14]);
+  ctx.beginPath();ctx.arc(0,0,r,0,6.284);ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,r*.62,0,6.284);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#ffb3cd';ctx.shadowBlur=blur*.6;
+  for(let k=0;k<12;k++){const a=k/12*6.283;
+    ctx.beginPath();ctx.arc(Math.cos(a)*r*.81,Math.sin(a)*r*.81,r*.07,0,6.284);ctx.fill();}
+  ctx.restore();ctx.globalAlpha=1;
+}
+function drawCharm(f,x,y,scale){
+  const rot=f.rot;
+  if(f.type==='heart'){drawHeartPath(x,y,f.s*scale,'#ff2d4e',f.a,rot,18);return;}
+  if(f.type==='lace'){drawLace(x,y,f.s*3*scale,f.a,rot,12);return;}
+  ctx.save();ctx.translate(x,y);ctx.rotate(rot);ctx.globalAlpha=f.a;
+  ctx.font=(f.s*4*scale)+'px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.shadowColor='#ff2d4e';ctx.shadowBlur=16;
+  ctx.fillText(CHARMS[f.type].ch,0,0);ctx.restore();ctx.globalAlpha=1;
+}
+function mkCharm(any){
+  return{type:TYPES[Math.random()*TYPES.length|0],
+    x:Math.random()*W,y:any?Math.random()*H:H+40,
+    s:5+Math.random()*7,vy:.35+Math.random()*.9,
+    sw:.4+Math.random()*1.4,ph:Math.random()*6.28,
+    a:.35+Math.random()*.55,rot:(Math.random()-.5)*.7};
+}
+let floaters=[];for(let i=0;i<16;i++)floaters.push(mkCharm(true));
+let held=null;
+
 (function loop(){
   ctx.clearRect(0,0,W,H);
-  hs=hs.filter(h=>h.y>-40);
-  for(const h of hs){
-    h.y-=h.vy;h.ph+=.02;
-    heart(h.x+Math.sin(h.ph)*28*h.sw*.5,h.y,h.s,h.c,h.a,h.rot+Math.sin(h.ph)*.2,16);
+  floaters=floaters.filter(f=>f.y>-60);
+  for(const f of floaters){
+    f.y-=f.vy;f.ph+=.02;
+    drawCharm(f,f.x+Math.sin(f.ph)*26*f.sw*.5,f.y,1);
   }
-  while(hs.length<55)hs.push(mk(false));
+  while(floaters.length<16)floaters.push(mkCharm(false));
+  if(held)drawCharm(held.f,held.hx,held.hy,1.5);
   requestAnimationFrame(loop);
 })();
 
-/* ======== drag & drop everything ======== */
+/* ======== drag & drop everything on the board ======== */
 const board=document.getElementById('board');
 let topZ=10;
-document.querySelectorAll('.draggable').forEach(el=>{
+function makeDraggable(el){
   el.addEventListener('pointerdown',e=>{
-    e.preventDefault();
+    e.preventDefault();e.stopPropagation();
     topZ++;el.style.zIndex=topZ;el.classList.add('grabbed');
     const b=board.getBoundingClientRect(),r=el.getBoundingClientRect();
     const ox=e.clientX-r.left,oy=e.clientY-r.top;
@@ -161,9 +199,60 @@ document.querySelectorAll('.draggable').forEach(el=>{
     el.addEventListener('pointerup',up);
     el.addEventListener('pointercancel',up);
   });
-});
-/* stickers shouldn't start drags on the board background */
+}
+document.querySelectorAll('.draggable').forEach(makeDraggable);
 board.addEventListener('pointerdown',e=>{e.preventDefault()},{passive:false});
+
+/* ======== catch a floating charm, drop it on the page ======== */
+function laceSVG(s){
+  let dots='';
+  for(let k=0;k<12;k++){const a=k/12*6.283;
+    dots+=`<circle cx="${(32+Math.cos(a)*26).toFixed(1)}" cy="${(32+Math.sin(a)*26).toFixed(1)}" r="2.4" fill="#ffb3cd"/>`;}
+  return `<svg width="${s}" height="${s}" viewBox="0 0 64 64" fill="none">`
+    +`<circle cx="32" cy="32" r="29" stroke="#ffd6e2" stroke-width="2" stroke-dasharray="5 4"/>`
+    +`<circle cx="32" cy="32" r="20" stroke="#ffb3cd" stroke-width="1.5" stroke-dasharray="3 4"/>`
+    +`<circle cx="32" cy="32" r="10" stroke="#ff8fb3" stroke-width="1.5"/>`
+    +dots+`</svg>`;
+}
+function dropCharm(type,cx,cy){
+  const b=board.getBoundingClientRect();
+  const el=document.createElement('div');
+  el.className='draggable sticker';
+  el.title=CHARMS[type].label;
+  if(type==='lace')el.innerHTML=laceSVG(64);
+  else if(type==='heart')el.textContent='♥';
+  else el.textContent=CHARMS[type].ch;
+  el.style.left=(cx-b.left-28)+'px';
+  el.style.top=(cy-b.top-28)+'px';
+  el.style.transform=`rotate(${(Math.random()*24-12).toFixed(0)}deg)`;
+  board.appendChild(el);makeDraggable(el);
+}
+addEventListener('pointerdown',e=>{
+  if(e.target.closest('.draggable')||e.target.closest('button')||e.target.closest('.board'))return;
+  for(let i=floaters.length-1;i>=0;i--){
+    const f=floaters[i],dx=e.clientX-f.x,dy=e.clientY-f.y,rad=f.s*2.8+18;
+    if(dx*dx+dy*dy<rad*rad){
+      floaters.splice(i,1);
+      held={f,hx:e.clientX,hy:e.clientY,id:e.pointerId};
+      cv.style.cursor='grabbing';
+      break;
+    }
+  }
+});
+addEventListener('pointermove',e=>{
+  if(held&&e.pointerId===held.id){held.hx=e.clientX;held.hy=e.clientY;}
+});
+function releaseHeld(e){
+  if(!held||(e&&e.pointerId!==held.id))return;
+  if(e){
+    const b=board.getBoundingClientRect();
+    if(e.clientX>=b.left&&e.clientX<=b.right&&e.clientY>=b.top&&e.clientY<=b.bottom)
+      dropCharm(held.f.type,e.clientX,e.clientY);
+  }
+  held=null;cv.style.cursor='grab';
+}
+addEventListener('pointerup',releaseHeld);
+addEventListener('pointercancel',()=>releaseHeld(null));
 </script>
 </body>
 </html>
